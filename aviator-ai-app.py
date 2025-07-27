@@ -3,7 +3,6 @@ from PIL import Image
 import numpy as np
 import easyocr
 import pandas as pd
-import os
 
 st.set_page_config(page_title="Aviator Strategy Assistant", layout="centered")
 st.title("🕹️ Aviator Game Vision + Strategy AI Assistant")
@@ -69,9 +68,14 @@ def show_predictions(history):
         df = pd.DataFrame({'Crash Multiplier (newest first)': history})
         st.dataframe(df, use_container_width=True)
 
-    # Save as CSV for download
+    # Save as CSV for download with unique key
     csv = pd.DataFrame({'Crash Multiplier': history})
-    st.download_button("Download All History as CSV", csv.to_csv(index=False), file_name="aviator_crash_history.csv")
+    st.download_button(
+        "Download All History as CSV",
+        csv.to_csv(index=False),
+        file_name="aviator_crash_history.csv",
+        key=f"download_button_{len(history)}"
+    )
 
 uploaded_file = st.file_uploader(
     "Step 1: Upload a clear Aviator Game Screenshot (PNG/JPG/JPEG) with crash multipliers visible (newest at top)", 
