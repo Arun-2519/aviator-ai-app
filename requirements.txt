@@ -1,5 +1,7 @@
-streamlit
-opencv-python-headless
+pandas
 numpy
+scikit-learn
 easyocr
-Pillow
+streamlit
+pillow
+torch      # Only if using LSTM/cuda
