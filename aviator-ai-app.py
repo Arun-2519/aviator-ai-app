@@ -9,9 +9,9 @@ st.set_page_config(page_title="Aviator Strategy Assistant", layout="centered")
 st.title("🕹️ Aviator Game Vision + Strategy AI Assistant")
 
 st.sidebar.info(
-    "1. Upload your initial Aviator screenshot (the model learns from all detected multipliers, newest at top)."
-    "\n2. Enter each new round's multiplier manually after each real round and get new predictions."
-    "\n3. All round data is stored and available for download as CSV."
+    "1. Upload your initial Aviator screenshot (the model learns from all detected multipliers, newest at top).\n"
+    "2. Enter each new round's multiplier manually after each real round and get new predictions.\n"
+    "3. All round data is stored and available for download as CSV."
 )
 
 conf_threshold = st.sidebar.slider("Confidence threshold (%)", 50, 100, 65)
@@ -22,12 +22,8 @@ def get_ocr_reader():
     return easyocr.Reader(['en'], gpu=False)
 ocr_reader = get_ocr_reader()
 
-# Session data persistence
 if 'crash_history' not in st.session_state:
     st.session_state.crash_history = []
-
-if 'csv_path' not in st.session_state:
-    st.session_state.csv_path = None
 
 def extract_multipliers_from_image(image):
     results = ocr_reader.readtext(np.array(image))
@@ -71,20 +67,17 @@ def show_predictions(history):
     # Show all stored data
     with st.expander("Show all stored crash data"):
         df = pd.DataFrame({'Crash Multiplier (newest first)': history})
-        st.dataframe(df)
+        st.dataframe(df, use_container_width=True)
 
     # Save as CSV for download
     csv = pd.DataFrame({'Crash Multiplier': history})
-    csv_path = "all_crash_history.csv"
-    csv.to_csv(csv_path, index=False)
-    with open(csv_path, "rb") as fp:
-        st.download_button("Download All History as CSV", fp, file_name="aviator_crash_history.csv")
-    st.session_state.csv_path = csv_path
+    st.download_button("Download All History as CSV", csv.to_csv(index=False), file_name="aviator_crash_history.csv")
 
 uploaded_file = st.file_uploader(
     "Step 1: Upload a clear Aviator Game Screenshot (PNG/JPG/JPEG) with crash multipliers visible (newest at top)", 
     type=["png", "jpg", "jpeg"])
 
+# Step 1: Only allow screenshot upload if user has not already started a session
 if uploaded_file and not st.session_state.crash_history:
     image = Image.open(uploaded_file).convert("RGB")
     st.image(image, caption="Uploaded Screenshot")
@@ -96,33 +89,27 @@ if uploaded_file and not st.session_state.crash_history:
         st.success(f"Detected (newest first): {', '.join(str(m) + 'x' for m in multipliers)}")
         show_predictions(st.session_state.crash_history)
 
-elif len(st.session_state.crash_history) > 0:
-    st.info("Your full crash multiplier history is stored below and updated with each manual entry.")
-
-    # Step 2: Continuous user input per round
-    st.markdown("### Step 2: After each new Aviator round, enter the new multiplier below and click 'Add Result for Next Prediction'")
-    next_multiplier = st.text_input(
-        "Enter the NEXT round's crash multiplier (e.g. 2.81 or 1.09):"
-    )
-    add_round = st.button("Add Result for Next Prediction")
-    if add_round and next_multiplier:
+# Step 2: After screenshot, always allow user to add next result manually for continuous prediction
+if len(st.session_state.crash_history) > 0:
+    st.markdown("### Step 2: After each new Aviator round, enter the next crash multiplier below and get updated advice.")
+    with st.form("add_next_multiplier_form"):
+        next_multiplier = st.text_input(
+            "Enter the NEXT round's crash multiplier (e.g. 2.81 or 1.09):"
+        )
+        submitted = st.form_submit_button("Add Result & Update Prediction")
+    if submitted:
         try:
             val = float(next_multiplier.strip().replace('x', '').replace('X', '').replace(',', '.'))
             if 0.9 < val < 100:
                 st.session_state.crash_history.insert(0, val)
-                show_predictions(st.session_state.crash_history)
+                st.success(f"Added {val}x as the newest round. Prediction updated below.")
             else:
                 st.warning("Please enter a valid multiplier (greater than 0.9 and less than 100).")
         except:
             st.warning("Input not recognized as a valid multiplier.")
 
-    # Show always-updated predictions and dataset after each change
     show_predictions(st.session_state.crash_history)
 
 if st.button("Clear All Data"):
     st.session_state.crash_history = []
-    if st.session_state.csv_path and os.path.exists(st.session_state.csv_path):
-        os.remove(st.session_state.csv_path)
-    st.session_state.csv_path = None
     st.success("All session data cleared.")
-
